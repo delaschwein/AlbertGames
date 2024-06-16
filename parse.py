@@ -1,16 +1,13 @@
-import os
+import os, json
 
-GAMES_DIR = './games'
+GAMES_DIR = './results'
 
 def main():
     files = os.listdir(GAMES_DIR)
 
     for ff in files:
         with open(f'{GAMES_DIR}/{ff}', 'r') as f:
-            first_line = f.readline()
-            print(first_line)
-            continue
-    pass
+            data = json.load(f)
 
 if __name__ == '__main__':
     main()

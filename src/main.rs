@@ -23,7 +23,6 @@ struct Message {
 #[derive(Serialize, Deserialize, Clone)]
 struct Phase {
     messages: Vec<Message>,
-    moves: Vec<String>,
     units: IndexMap<String, Vec<String>>,
     scs: IndexMap<String, Vec<String>>,
 }
@@ -31,6 +30,7 @@ struct Phase {
 #[derive(Serialize, Deserialize)]
 struct Game {
     phases: IndexMap<String, Phase>,
+    moves: Vec<String>,
     status: String,
     summary: String,
 }
@@ -74,10 +74,10 @@ fn construct_game(input: Vec<String>, power_map: &IndexMap<String, String>) -> G
     let mut phases: IndexMap<String, Phase> = IndexMap::new();
     let mut curr_sc_dist: IndexMap<String, Vec<String>> = IndexMap::new();
     let mut curr_unit_dist: IndexMap<String, Vec<String>> = IndexMap::new();
+    let mut moves: Vec<String> = Vec::new();
     let mut curr_phase: String = "".to_string();
     let mut phase_now: Phase = Phase {
         messages: Vec::new(),
-        moves: Vec::new(),
         units: IndexMap::new(),
         scs: IndexMap::new(),
     };
@@ -129,7 +129,7 @@ fn construct_game(input: Vec<String>, power_map: &IndexMap<String, String>) -> G
 
             if line.contains("ORD") {
                 // add to phase_now.moves
-                phase_now.moves.push(line.to_string());
+                moves.push(line.to_string());
             } else {
                 if line.contains("SCO") {
                     let sc_dist: Vec<String> = sc_dist_re
@@ -242,6 +242,7 @@ fn construct_game(input: Vec<String>, power_map: &IndexMap<String, String>) -> G
         phases: phases,
         status: end_game_status,
         summary: summary,
+        moves: moves,
     };
     final_game
 }

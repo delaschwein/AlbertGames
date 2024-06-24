@@ -10,3 +10,6 @@ panic = "0.3.1"
 regex = "1.10.5"
 serde = "1.0.203"
 serde_json = "1.0.117"
+indexmap = { version = "2.2.6", features = ["serde"] }
+log = "0.4.21"
+indicatif = "0.17.8"

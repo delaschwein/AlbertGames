@@ -5,6 +5,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use log::info;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::fs;
 use std::io::{self, BufRead, Write};
@@ -75,6 +76,8 @@ fn construct_game(input: Vec<String>, power_map: &IndexMap<String, String>) -> G
     let mut curr_sc_dist: IndexMap<String, Vec<String>> = IndexMap::new();
     let mut curr_unit_dist: IndexMap<String, Vec<String>> = IndexMap::new();
     let mut moves: Vec<String> = Vec::new();
+    let mut curr_messages: Vec<Message> = Vec::new();
+
     let mut curr_phase: String = "".to_string();
     let mut phase_now: Phase = Phase {
         messages: Vec::new(),
@@ -158,9 +161,21 @@ fn construct_game(input: Vec<String>, power_map: &IndexMap<String, String>) -> G
                         let sc: Vec<String> = sc.iter().map(|s: &&str| s.to_string()).collect();
                         curr_sc_dist.insert(power.to_string(), sc);
                     }
+                    phase_now.scs = curr_sc_dist.clone();
+                    // print
+                    println!("phase {} scs {:?}", curr_phase, curr_sc_dist);
                 } else if line.contains("NOW") {
                     if curr_phase != "" {
+                        // insert phase_now into phases
                         phases.insert(curr_phase.clone(), phase_now.clone());
+                        phase_now = Phase {
+                            messages: Vec::new(),
+                            units: IndexMap::new(),
+                            scs: IndexMap::new(),
+                        };
+                        curr_sc_dist = IndexMap::new();
+                        curr_unit_dist = IndexMap::new();
+                        curr_messages = Vec::new();
                     }
 
                     // substring(3, end)
@@ -173,17 +188,17 @@ fn construct_game(input: Vec<String>, power_map: &IndexMap<String, String>) -> G
                     );
                     // iterate over line by char
                     let mut curr_substring: Vec<char> = Vec::new();
+                    let mut stack: VecDeque<usize> = VecDeque::new();
+                    let chars: Vec<char> = line.chars().collect();
 
-                    for ii in 0..line.len() {
-                        let c: char = line.chars().nth(ii).unwrap();
+                    for (i, &c) in chars.iter().enumerate() {
                         if c == '(' {
-                            // append to curr_substring until the closing bracket
-                            let mut j = ii + 1;
-                            while j < line.len() {
-                                let c: char = line.chars().nth(j).unwrap();
-                                if c == ')' {
-                                    let s: String = curr_substring.iter().collect();
-                                    let s: &str = s.trim();
+                            stack.push_back(i);
+                        } else if c == ')' {
+                            if let Some(start) = stack.pop_back() {
+                                if stack.is_empty() {
+                                    let substring: String = chars[start + 1..i].iter().collect();
+                                    let s = substring.trim();
 
                                     if s.contains("19") {
                                         curr_phase = s.to_string();
@@ -191,31 +206,26 @@ fn construct_game(input: Vec<String>, power_map: &IndexMap<String, String>) -> G
                                         assert!(s.len() > 7, "Invalid unit distribution: {}", s);
                                         let power: &str = &s[0..3];
                                         let unit_type: &str = &s[4..7];
-                                        let unit: &str = &s[7..];
+                                        let unit: &str = &s[8..];
 
-                                        // check if the power exists in unit_dist
-                                        if !curr_unit_dist.contains_key(power) {
-                                            curr_unit_dist.insert(power.to_string(), Vec::new());
-                                        }
-
-                                        if let Some(units) = curr_unit_dist.get_mut(power) {
-                                            let unit_str: String =
-                                                unit_type.chars().next().unwrap().to_string()
-                                                    + " "
-                                                    + unit;
-                                            units.push(unit_str);
-                                        }
+                                        curr_unit_dist
+                                            .entry(power.to_string())
+                                            .or_insert_with(Vec::new)
+                                            .push(s.to_string());
                                     }
-                                    break;
+                                    curr_substring.clear();
                                 }
-                                curr_substring.push(c);
-                                j += 1;
                             }
+                        } else if !stack.is_empty() {
+                            curr_substring.push(c);
                         }
                     }
+
                     // update phase_now using curr_unit_dist and curr_sc_dist
                     phase_now.units = curr_unit_dist.clone();
-                    phase_now.scs = curr_sc_dist.clone();
+                    //phase_now.scs = curr_sc_dist.clone();
+
+                    // reset current phase
                 } else if line.contains("SLO") || line.contains("DRW") {
                     end_game_status = line.to_string();
                 } else if line.contains("SMR") {
@@ -234,10 +244,12 @@ fn construct_game(input: Vec<String>, power_map: &IndexMap<String, String>) -> G
                     recipient: to_power.to_string(),
                     message: content.to_string(),
                 };
-                phase_now.messages.push(message);
+                curr_messages.push(message);
+                phase_now.messages = curr_messages.clone();
             }
         }
     }
+
     let final_game: Game = Game {
         phases: phases,
         status: end_game_status,
